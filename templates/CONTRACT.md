@@ -29,3 +29,5 @@ Repairs: {{failed repairs of one finding before the unit stops}}
 
 ## Acceptance and closure
 Observable criteria, evidence, test procedure, review, integration, and cleanup obligations.
+
+Tests: {{command run in the worktree; its output goes to the reviewer and must pass on the merged result}}

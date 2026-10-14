@@ -31,3 +31,4 @@ Read [DOCUMENTS.md](DOCUMENTS.md) and [DECISIONS.md](DECISIONS.md) before doing 
 
 - Tests: `uv run --with pytest python -m pytest -q tests`
 - CLI: `bin/sdlc --help`
+- One unit end to end: `adopt` the project, commit a contract under `contracts/`, `contract check`, `dispatch --apply`, the writer works in the worktree, `review`, `integrate --apply`. Every step refuses with a reason when its gate is not met.

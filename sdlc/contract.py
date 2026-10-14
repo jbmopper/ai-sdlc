@@ -9,7 +9,9 @@ A contract passes when:
   one decision in DECISIONS.md, and every citation resolves (listed doc,
   existing and unsuperseded D-number);
 - a `Reserved:` line names the choices that return to Jules (or "none");
-- Effort and stopping carries `Turns:` and `Repairs:` as positive integers (D17).
+- Effort and stopping carries `Turns:` and `Repairs:` as positive integers (D17);
+- Acceptance and closure carries a `Tests:` command, which review runs in the
+  worktree and integrate runs on the merged result.
 
 The check prints what is missing and what would resolve it, and exits 2.
 On success it prints the parsed unit summary that `dispatch` consumes.
@@ -45,6 +47,7 @@ class Contract:
     turns: int
     repairs: int
     reserved: str
+    tests: str
     model: str | None
     docs: list[str] = field(default_factory=list)
     decisions: list[str] = field(default_factory=list)
@@ -146,6 +149,10 @@ def check(path: Path) -> tuple[Contract | None, list[str]]:
         elif not val.isdigit() or int(val) <= 0:
             problems.append(f"`{name}:` must be a positive integer; got {val!r}.")
 
+    tests = keyvalue(sections.get("Acceptance and closure", ""), "Tests")
+    if tests is None:
+        problems.append("No `Tests:` line under Acceptance and closure. Name the command that establishes the change.")
+
     docs, decisions = citations(sections.get("Authoritative inputs", ""))
     if not docs and not decisions:
         problems.append("Authoritative inputs cite nothing. Cite at least one document listed in DOCUMENTS.md or one D-number.")
@@ -164,7 +171,7 @@ def check(path: Path) -> tuple[Contract | None, list[str]]:
         return None, problems
     return Contract(
         path=str(path), unit=unit, branch=f"unit/{unit}",
-        turns=int(turns), repairs=int(repairs), reserved=reserved,
+        turns=int(turns), repairs=int(repairs), reserved=reserved, tests=tests,
         model=keyvalue(text, "Model"), docs=docs, decisions=decisions,
     ), []
 

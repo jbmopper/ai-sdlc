@@ -15,12 +15,5 @@ def test_help_lists_every_workflow_tool():
         assert name in out
 
 
-def test_unbuilt_subcommands_refuse_loudly():
-    for args in (("review", "x"), ("integrate", "x")):
-        r = run(*args)
-        assert r.returncode == 3, args
-        assert "not built" in r.stderr
-
-
 def test_no_command_is_an_error():
     assert run().returncode == 2

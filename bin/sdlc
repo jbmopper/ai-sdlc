@@ -12,14 +12,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from sdlc import adopt, contract, dispatch, protected  # noqa: E402
+from sdlc import adopt, contract, dispatch, integrate, protected, review  # noqa: E402
 
-NOT_BUILT = 3
-
-
-def not_built(name: str) -> int:
-    print(f"sdlc {name}: not built yet. See WORKFLOW.md.", file=sys.stderr)
-    return NOT_BUILT
 
 
 def cmd_adopt(args: argparse.Namespace) -> int:
@@ -39,11 +33,11 @@ def cmd_check_protected(args: argparse.Namespace) -> int:
 
 
 def cmd_review(args: argparse.Namespace) -> int:
-    return not_built("review")
+    return review.main(args.unit, reviewer=args.reviewer)
 
 
 def cmd_integrate(args: argparse.Namespace) -> int:
-    return not_built("integrate")
+    return integrate.main(args.unit, do_apply=args.apply)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -78,11 +72,12 @@ def build_parser() -> argparse.ArgumentParser:
     k.set_defaults(func=cmd_check_protected)
 
     r = sub.add_parser("review", help="assemble the review package, run the reviewer, store the verdict")
-    r.add_argument("branch")
+    r.add_argument("unit", help="unit id or unit/<id>")
+    r.add_argument("--reviewer", help="reviewer command; reads the package on stdin, prints the JSON verdict")
     r.set_defaults(func=cmd_review)
 
-    i = sub.add_parser("integrate", help="squash merge a reviewed branch and clean up")
-    i.add_argument("branch")
+    i = sub.add_parser("integrate", help="squash merge a reviewed unit and clean up")
+    i.add_argument("unit", help="unit id or unit/<id>")
     i.add_argument("--apply", action="store_true")
     i.set_defaults(func=cmd_integrate)
 

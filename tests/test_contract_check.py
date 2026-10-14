@@ -30,6 +30,8 @@ Repairs: 2
 
 ## Acceptance and closure
 The new test fails before and passes after. Review, then `sdlc integrate`.
+
+Tests: python -m pytest -q
 """
 
 
@@ -72,6 +74,7 @@ def test_json_output_carries_what_dispatch_needs(project):
     assert data["turns"] == 30 and data["repairs"] == 2
     assert data["docs"] == ["docs/spec.md"] and data["decisions"] == ["D3"]
     assert data["model"] == "haiku" and data["reserved"] == "none"
+    assert data["tests"] == "python -m pytest -q"
 
 
 def test_superseded_decision_is_refused(project):
@@ -122,6 +125,12 @@ def test_effort_lines_must_be_positive_integers(project):
     assert r.returncode == 2
     assert "`Turns:` must be a positive integer" in r.stderr
     assert "`Repairs:` must be a positive integer" in r.stderr
+
+
+def test_missing_tests_line_is_refused(project):
+    text = GOOD.replace("D2", "D3").replace("Tests: python -m pytest -q\n", "")
+    r = check(project, write(project, text))
+    assert r.returncode == 2 and "No `Tests:` line" in r.stderr
 
 
 def test_missing_reserved_line_is_refused(project):
