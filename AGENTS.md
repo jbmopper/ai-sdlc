@@ -25,7 +25,7 @@ Read [DOCUMENTS.md](DOCUMENTS.md) and [DECISIONS.md](DECISIONS.md) before doing 
 - **Keep wrong turns out.** Abandoned ideas and unvalidated proposals never go anywhere a future session will read.
 - **Agent memory stays empty.** All persistent context lives in this repo.
 - **Don't clutter.** Create a file only when it's needed. Scratch work goes outside the repo.
-- **Write "Jules" and "agents," never "I."** Many agents and sessions work on this project.
+- **In repository content, write "Jules" and "agents," never "I."** Many agents and sessions write these documents, and a first person means nothing to the next reader. In conversation, talk normally.
 
 ## Running
 
