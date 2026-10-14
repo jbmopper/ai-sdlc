@@ -1,7 +1,8 @@
 """`sdlc adopt <repo>`: install the substrate and hooks into a project (D7).
 
 Dry-run by default: prints one line per item saying what would happen.
-`--apply` performs it. Existing files are kept unless `--force`. Existing git
+`--apply` performs it. Existing files are kept unless `--force`, which still
+never touches DOCUMENTS.md or DECISIONS.md: those are Jules's records. Existing git
 hooks are chained after ours, never replaced: the old hook moves to
 `<hook>.sdlc-chained` and our wrapper runs it after the gate passes. A second
 run is a no-op.
@@ -19,6 +20,7 @@ HERE = Path(__file__).resolve().parent.parent
 SDLC_BIN = HERE / "bin" / "sdlc"
 TEMPLATES = HERE / "templates"
 SUBSTRATE = ("CLAUDE.md", "AGENTS.md", "DOCUMENTS.md", "DECISIONS.md")
+RECORDS_NEVER_OVERWRITTEN = ("DOCUMENTS.md", "DECISIONS.md")  # Jules's records; --force does not touch them
 GIT_HOOKS = ("pre-commit", "pre-push")
 MARKER = "# ai-sdlc hook"
 CHAINED_SUFFIX = ".sdlc-chained"
@@ -26,7 +28,7 @@ CHAINED_SUFFIX = ".sdlc-chained"
 
 def render_template(name: str, project: str, description: str | None) -> str:
     text = (TEMPLATES / name).read_text()
-    text = text.replace("{{project}}", project)
+    text = text.replace("{{project}}", project).replace("@SDLC@", str(SDLC_BIN))
     if description:
         text = text.replace("{{one-line description}}", description)
     else:
@@ -66,7 +68,7 @@ def plan(repo: Path, force: bool, description: str | None) -> list[tuple[str, st
             items.append(("create", str(target), content))
         elif target.read_text() == content:
             items.append(("noop", str(target), None))
-        elif force:
+        elif force and name not in RECORDS_NEVER_OVERWRITTEN:
             items.append(("overwrite", str(target), content))
         else:
             items.append(("keep", str(target), None))

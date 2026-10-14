@@ -29,6 +29,7 @@ def test_apply_installs_substrate_hooks_and_settings(bare_repo):
         assert (bare_repo / name).exists(), name
     agents = (bare_repo / "AGENTS.md").read_text()
     assert "**proj** — a test project." in agents and "{{" not in agents
+    assert f"`{SDLC_BIN} contract check`" in agents and "@SDLC@" not in agents
     for name in ("pre-commit", "pre-push"):
         hook = hooks_dir(bare_repo) / name
         text = hook.read_text()
@@ -80,6 +81,17 @@ def test_existing_differing_file_is_kept_unless_forced(bare_repo):
     assert (bare_repo / "AGENTS.md").read_text() == "# mine\n"
     sdlc(bare_repo, "adopt", str(bare_repo), "--apply", "--force")
     assert "Instructions for every agent" in (bare_repo / "AGENTS.md").read_text()
+
+
+def test_force_never_overwrites_records(bare_repo):
+    (bare_repo / "DECISIONS.md").write_text("| D1 | 2026-01-01 | Mine. |\n")
+    (bare_repo / "DOCUMENTS.md").write_text("# mine\n")
+    (bare_repo / "AGENTS.md").write_text("# old\n")
+    r = sdlc(bare_repo, "adopt", str(bare_repo), "--apply", "--force")
+    assert (bare_repo / "DECISIONS.md").read_text() == "| D1 | 2026-01-01 | Mine. |\n"
+    assert (bare_repo / "DOCUMENTS.md").read_text() == "# mine\n"
+    assert "Instructions for every agent" in (bare_repo / "AGENTS.md").read_text()
+    assert r.stdout.count("kept (exists, differs") == 2
 
 
 def test_existing_hook_is_chained_and_still_runs(bare_repo):
