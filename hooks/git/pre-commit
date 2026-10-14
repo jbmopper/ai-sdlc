@@ -1,3 +1,7 @@
 #!/bin/sh
-# Thin wrapper. Logic lives in `sdlc check-protected`.
-exec sdlc check-protected
+# ai-sdlc hook. Thin wrapper: logic lives in `sdlc check-protected`.
+# Installed by `sdlc adopt`; @SDLC@ and @CHAINED@ are filled at install time.
+SDLC="@SDLC@"
+CHAINED="@CHAINED@"
+"$SDLC" check-protected || exit $?
+if [ -n "$CHAINED" ] && [ -x "$CHAINED" ]; then exec "$CHAINED" "$@"; fi

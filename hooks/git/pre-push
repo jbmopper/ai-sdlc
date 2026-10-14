@@ -1,3 +1,8 @@
 #!/bin/sh
-# Thin wrapper. Refuses a push to main from a work branch. Logic lives in `sdlc check-protected`.
-exec sdlc check-protected --push
+# ai-sdlc hook. Thin wrapper: logic lives in `sdlc check-protected --push`.
+# Installed by `sdlc adopt`; @SDLC@ and @CHAINED@ are filled at install time.
+SDLC="@SDLC@"
+CHAINED="@CHAINED@"
+input=$(cat)
+printf '%s\n' "$input" | "$SDLC" check-protected --push || exit $?
+if [ -n "$CHAINED" ] && [ -x "$CHAINED" ]; then printf '%s\n' "$input" | exec "$CHAINED" "$@"; fi

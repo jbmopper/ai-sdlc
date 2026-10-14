@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from sdlc import protected  # noqa: E402
+from sdlc import adopt, contract, protected  # noqa: E402
 
 NOT_BUILT = 3
 
@@ -23,11 +23,11 @@ def not_built(name: str) -> int:
 
 
 def cmd_adopt(args: argparse.Namespace) -> int:
-    return not_built("adopt")
+    return adopt.main(args.repo, apply=args.apply, force=args.force, description=args.description)
 
 
 def cmd_contract(args: argparse.Namespace) -> int:
-    return not_built("contract")
+    return contract.main(args.file, as_json=args.json)
 
 
 def cmd_dispatch(args: argparse.Namespace) -> int:
@@ -54,12 +54,14 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("repo")
     a.add_argument("--apply", action="store_true")
     a.add_argument("--force", action="store_true", help="overwrite existing files")
+    a.add_argument("--description", help="one-line project description for AGENTS.md")
     a.set_defaults(func=cmd_adopt)
 
     c = sub.add_parser("contract", help="work-unit contract gates")
     csub = c.add_subparsers(dest="action", required=True)
     cc = csub.add_parser("check", help="definition of ready")
     cc.add_argument("file")
+    cc.add_argument("--json", action="store_true", help="print the parsed contract as JSON")
     cc.set_defaults(func=cmd_contract)
 
     d = sub.add_parser("dispatch", help="create the unit's worktree and branch")
