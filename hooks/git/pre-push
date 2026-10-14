@@ -1,0 +1,3 @@
+#!/bin/sh
+# Thin wrapper. Refuses a push to main from a work branch. Logic lives in `sdlc check-protected`.
+exec sdlc check-protected --push

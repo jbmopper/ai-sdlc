@@ -1,0 +1,3 @@
+#!/bin/sh
+# Thin wrapper. Logic lives in `sdlc check-protected`.
+exec sdlc check-protected

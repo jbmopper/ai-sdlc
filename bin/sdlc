@@ -1,0 +1,94 @@
+#!/usr/bin/env python3
+"""ai-sdlc command line. Each subcommand is a gate or a step from WORKFLOW.md.
+
+Every subcommand that changes a project, branch, or worktree is dry-run unless
+--apply is given. A failing gate exits 2 and names what is missing.
+"""
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from sdlc import protected  # noqa: E402
+
+NOT_BUILT = 3
+
+
+def not_built(name: str) -> int:
+    print(f"sdlc {name}: not built yet. See WORKFLOW.md.", file=sys.stderr)
+    return NOT_BUILT
+
+
+def cmd_adopt(args: argparse.Namespace) -> int:
+    return not_built("adopt")
+
+
+def cmd_contract(args: argparse.Namespace) -> int:
+    return not_built("contract")
+
+
+def cmd_dispatch(args: argparse.Namespace) -> int:
+    return not_built("dispatch")
+
+
+def cmd_check_protected(args: argparse.Namespace) -> int:
+    return protected.main(args.paths, push=args.push, from_hook=args.from_hook)
+
+
+def cmd_review(args: argparse.Namespace) -> int:
+    return not_built("review")
+
+
+def cmd_integrate(args: argparse.Namespace) -> int:
+    return not_built("integrate")
+
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(prog="sdlc", description=__doc__.splitlines()[0])
+    sub = p.add_subparsers(dest="command", required=True)
+
+    a = sub.add_parser("adopt", help="install the substrate and hooks into a project")
+    a.add_argument("repo")
+    a.add_argument("--apply", action="store_true")
+    a.add_argument("--force", action="store_true", help="overwrite existing files")
+    a.set_defaults(func=cmd_adopt)
+
+    c = sub.add_parser("contract", help="work-unit contract gates")
+    csub = c.add_subparsers(dest="action", required=True)
+    cc = csub.add_parser("check", help="definition of ready")
+    cc.add_argument("file")
+    cc.set_defaults(func=cmd_contract)
+
+    d = sub.add_parser("dispatch", help="create the unit's worktree and branch")
+    d.add_argument("contract")
+    d.add_argument("--apply", action="store_true")
+    d.set_defaults(func=cmd_dispatch)
+
+    k = sub.add_parser("check-protected", help="refuse changes to protected files on a work branch")
+    k.add_argument("paths", nargs="*", help="paths to check; default is the staged set")
+    k.add_argument("--push", action="store_true", help="git pre-push mode: read ref updates from stdin")
+    k.add_argument("--from-hook", action="store_true", help="Claude Code PreToolUse mode: read hook JSON from stdin")
+    k.set_defaults(func=cmd_check_protected)
+
+    r = sub.add_parser("review", help="assemble the review package, run the reviewer, store the verdict")
+    r.add_argument("branch")
+    r.set_defaults(func=cmd_review)
+
+    i = sub.add_parser("integrate", help="squash merge a reviewed branch and clean up")
+    i.add_argument("branch")
+    i.add_argument("--apply", action="store_true")
+    i.set_defaults(func=cmd_integrate)
+
+    return p
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
