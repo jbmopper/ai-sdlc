@@ -39,6 +39,14 @@ def test_apply_installs_substrate_hooks_and_settings(bare_repo):
     assert cmd == f"{SDLC_BIN} check-protected --from-hook"
 
 
+def test_sdlc_records_dir_is_gitignored(bare_repo):
+    (bare_repo / ".gitignore").write_text("*.pyc")  # no trailing newline
+    sdlc(bare_repo, "adopt", str(bare_repo), "--apply")
+    assert (bare_repo / ".gitignore").read_text() == "*.pyc\n.sdlc/\n"
+    r = sdlc(bare_repo, "adopt", str(bare_repo), "--apply")
+    assert (bare_repo / ".gitignore").read_text() == "*.pyc\n.sdlc/\n"
+
+
 def test_without_description_the_placeholder_is_dropped(bare_repo):
     sdlc(bare_repo, "adopt", str(bare_repo), "--apply")
     agents = (bare_repo / "AGENTS.md").read_text()
@@ -62,7 +70,7 @@ def test_second_run_is_a_noop(bare_repo):
     r = sdlc(bare_repo, "adopt", str(bare_repo), "--apply")
     assert r.returncode == 0
     assert "created" not in r.stdout and "chained" not in r.stdout and "added" not in r.stdout
-    assert r.stdout.count("already in place") == 7
+    assert r.stdout.count("already in place") == 8
 
 
 def test_existing_differing_file_is_kept_unless_forced(bare_repo):

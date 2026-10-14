@@ -85,6 +85,14 @@ def plan(repo: Path, force: bool, description: str | None) -> list[tuple[str, st
         else:
             items.append(("create", str(target), render_hook(name, None)))
 
+    gitignore = root / ".gitignore"
+    existing = gitignore.read_text() if gitignore.exists() else ""
+    if any(line.strip() in (".sdlc", ".sdlc/") for line in existing.splitlines()):
+        items.append(("noop", str(gitignore), None))
+    else:
+        sep = "" if not existing or existing.endswith("\n") else "\n"
+        items.append(("append", str(gitignore), existing + sep + ".sdlc/\n"))
+
     settings_path = root / ".claude" / "settings.json"
     settings = json.loads(settings_path.read_text()) if settings_path.exists() else {}
     if has_our_entry(settings):
@@ -100,7 +108,7 @@ def execute(items: list[tuple[str, str, object]]) -> None:
         t = Path(target)
         if action == "chain":
             t.rename(t.with_name(t.name + CHAINED_SUFFIX))
-        if action in ("create", "overwrite", "merge", "chain"):
+        if action in ("create", "overwrite", "merge", "chain", "append"):
             t.parent.mkdir(parents=True, exist_ok=True)
             t.write_text(payload)  # type: ignore[arg-type]
             if isinstance(payload, str) and payload.startswith("#!"):
@@ -113,6 +121,7 @@ VERBS = {
     "keep": ("would keep (exists, differs; use --force to overwrite)", "kept (exists, differs; use --force to overwrite)"),
     "chain": (f"would chain existing hook as *{CHAINED_SUFFIX} after the gate", f"chained existing hook as *{CHAINED_SUFFIX} after the gate"),
     "merge": ("would add PreToolUse hook to", "added PreToolUse hook to"),
+    "append": ("would add .sdlc/ to", "added .sdlc/ to"),
     "noop": ("already in place", "already in place"),
 }
 

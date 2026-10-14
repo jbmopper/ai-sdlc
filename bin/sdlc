@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from sdlc import adopt, contract, protected  # noqa: E402
+from sdlc import adopt, contract, dispatch, protected  # noqa: E402
 
 NOT_BUILT = 3
 
@@ -31,7 +31,7 @@ def cmd_contract(args: argparse.Namespace) -> int:
 
 
 def cmd_dispatch(args: argparse.Namespace) -> int:
-    return not_built("dispatch")
+    return dispatch.main(args.contract, apply=args.apply, worktrees_dir=args.worktrees_dir, as_json=args.json)
 
 
 def cmd_check_protected(args: argparse.Namespace) -> int:
@@ -67,6 +67,8 @@ def build_parser() -> argparse.ArgumentParser:
     d = sub.add_parser("dispatch", help="create the unit's worktree and branch")
     d.add_argument("contract")
     d.add_argument("--apply", action="store_true")
+    d.add_argument("--worktrees-dir", help="where unit worktrees go; default <parent>/<project>.units")
+    d.add_argument("--json", action="store_true", help="print the dispatch package as JSON")
     d.set_defaults(func=cmd_dispatch)
 
     k = sub.add_parser("check-protected", help="refuse changes to protected files on a work branch")
