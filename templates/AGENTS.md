@@ -15,6 +15,7 @@ Read [DOCUMENTS.md](DOCUMENTS.md) and [DECISIONS.md](DECISIONS.md) before doing 
 - **Only validated decisions go in DECISIONS.md.** Agents propose entries. Jules validates them.
 - **DECISIONS.md is append-only.** A reversed decision is struck through, and notes the decision that supersedes it.
 - **Work from a contract.** A work unit starts when its contract passes `@SDLC@ contract check`. The contract is the specification you are held to.
+- **The work record is the commit messages.** The reviewer never sees your transcript or any report you write elsewhere. Put assumptions, discoveries, and deviations in commit bodies, and summarize in the final commit.
 - **Work in a branch and commit as you go.** Integration is `@SDLC@ integrate` after review, never a manual merge.
 - **The tool is `@SDLC@`.** Always call it by that full path; it is not on PATH.
 - **Keep wrong turns out.** Abandoned ideas and unvalidated proposals never go anywhere a future session will read.

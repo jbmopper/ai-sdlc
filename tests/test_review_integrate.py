@@ -70,6 +70,7 @@ def test_review_pass_stores_verdict_keyed_to_sha(project, tmp_path, monkeypatch)
     pkg = capture.read_text()
     assert "# Contract" in pkg and "Turns: 30" in pkg
     assert "# Decision record" in pkg and "D3" in pkg
+    assert "# Cited documents" in pkg and "## docs/spec.md (at base" in pkg and "# spec" in pkg
     assert "+x = 2" in pkg and "- " in pkg and "fix parser" in pkg
     assert "# Test output" in pkg and "exit 0" in pkg
     assert "independent reviewer" in pkg
@@ -111,7 +112,39 @@ def test_needs_decision_passes_when_nothing_reserved(project):
     assert "[needs-decision] Which format?" in r.stdout
 
 
-def test_needs_decision_fails_when_choices_are_reserved(bare_repo, monkeypatch):
+def test_decision_outcome_same_head_may_be_reviewed_again(bare_repo, monkeypatch):
+    monkeypatch.setenv("SDLC_REVIEWER", FAKE)
+    p = bare_repo
+    (p / "DOCUMENTS.md").write_text("# Documents\n\n| Doc | Purpose |\n|---|---|\n| [spec](docs/spec.md) | Spec |\n")
+    (p / "DECISIONS.md").write_text("# Decisions\n\n| # | Date | Decision |\n|---|---|---|\n| D3 | 2026-01-02 | Three. |\n")
+    (p / "docs").mkdir(); (p / "docs" / "spec.md").write_text("# spec\n")
+    (p / "contracts").mkdir(); (p / "src").mkdir(); (p / "src" / "a.py").write_text("x = 1\n")
+    (p / "contracts" / f"{UNIT}.md").write_text(CONTRACT.replace("Reserved: none", "Reserved: output format"))
+    git(p, "add", "-A"); git(p, "commit", "-q", "-m", "c")
+    sdlc(p, "dispatch", str(p / "contracts" / f"{UNIT}.md"), "--apply")
+    write_change(p, "x = 2  # DECIDE\n")
+    assert sdlc(p, "review", UNIT).returncode == 3
+    r = sdlc(p, "review", UNIT)  # same head, no code change: allowed after a decision outcome
+    assert r.returncode == 3, r.stderr
+    assert len(sorted((p / ".sdlc" / "units" / UNIT / "reviews").glob("*.json"))) == 2
+
+
+def test_blocking_still_fails_even_with_reserved_choice(bare_repo, monkeypatch):
+    monkeypatch.setenv("SDLC_REVIEWER", FAKE)
+    p = bare_repo
+    (p / "DOCUMENTS.md").write_text("# Documents\n\n| Doc | Purpose |\n|---|---|\n| [spec](docs/spec.md) | Spec |\n")
+    (p / "DECISIONS.md").write_text("# Decisions\n\n| # | Date | Decision |\n|---|---|---|\n| D3 | 2026-01-02 | Three. |\n")
+    (p / "docs").mkdir(); (p / "docs" / "spec.md").write_text("# spec\n")
+    (p / "contracts").mkdir(); (p / "src").mkdir(); (p / "src" / "a.py").write_text("x = 1\n")
+    (p / "contracts" / f"{UNIT}.md").write_text(CONTRACT.replace("Reserved: none", "Reserved: output format"))
+    git(p, "add", "-A"); git(p, "commit", "-q", "-m", "c")
+    sdlc(p, "dispatch", str(p / "contracts" / f"{UNIT}.md"), "--apply")
+    write_change(p, "x = 2  # DECIDE BLOCKER\n")
+    r = sdlc(p, "review", UNIT)
+    assert r.returncode == 1 and "FAIL" in r.stdout
+
+
+def test_needs_decision_on_reserved_choice_is_a_decision_outcome(bare_repo, monkeypatch):
     monkeypatch.setenv("SDLC_REVIEWER", FAKE)
     # build a project whose contract reserves a choice
     p = bare_repo
@@ -122,9 +155,25 @@ def test_needs_decision_fails_when_choices_are_reserved(bare_repo, monkeypatch):
     (p / "contracts" / f"{UNIT}.md").write_text(CONTRACT.replace("Reserved: none", "Reserved: output format"))
     git(p, "add", "-A"); git(p, "commit", "-q", "-m", "c")
     sdlc(p, "dispatch", str(p / "contracts" / f"{UNIT}.md"), "--apply")
-    write_change(p, "x = 2  # DECIDE\n")
+    head = write_change(p, "x = 2  # DECIDE\n")
     r = sdlc(p, "review", UNIT)
-    assert r.returncode == 1 and "needs-decision finding on a unit with reserved choices" in r.stdout
+    assert r.returncode == 3, r.stdout + r.stderr
+    assert "DECISION REQUIRED (no round spent; 1/3 remains next)" in r.stdout
+    assert "waiting on Jules: Which format?" in r.stdout
+    stored = json.loads(sorted((p / ".sdlc" / "units" / UNIT / "reviews").glob("*.json"))[0].read_text())
+    assert stored["verdict"] == "decision" and stored["round"] is None
+    # integrate waits for Jules
+    r = sdlc(p, "integrate", UNIT)
+    assert r.returncode == 2 and "waiting on a decision from Jules: Which format?" in r.stderr
+    # Jules records the decision; the same head is reviewed again and the round count is unaffected
+    (p / "DECISIONS.md").write_text((p / "DECISIONS.md").read_text() + "| D4 | 2026-10-15 | JSON. |\n")
+    git(p, "commit", "-qam", "D4")
+    (worktree(p) / "src" / "a.py").write_text("x = 2\n")  # writer applies the decision
+    git(worktree(p), "commit", "-qam", "apply D4")
+    r = sdlc(p, "review", UNIT)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "round 1/3" in r.stdout
+    assert sdlc(p, "integrate", UNIT, "--apply").returncode == 0
 
 
 def test_review_refuses_same_sha_twice(project):

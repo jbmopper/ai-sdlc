@@ -58,6 +58,8 @@ def gate(root: Path, unit: str) -> tuple[dict, dict, list[str], list[str]]:
         problems.append("no review on record; run `sdlc review` first.")
     elif latest["sha"] != head:
         problems.append(f"latest verdict is for {latest['sha'][:10]} but the branch is at {head[:10]}; review the current head.")
+    elif latest["verdict"] == "decision":
+        problems.append(f"the unit is waiting on a decision from Jules: {'; '.join(latest.get('waiting_on', []))}. Record it in DECISIONS.md, then review again.")
     elif latest["verdict"] != "pass":
         problems.append(f"latest verdict (round {latest['round']}) is FAIL; repair and review again.")
 

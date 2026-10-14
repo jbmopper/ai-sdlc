@@ -6,10 +6,17 @@ command with the package on stdin, parses the JSON verdict, enforces the
 rules the model may not bend, and stores the verdict under the unit record
 keyed to the reviewed commit. Writers never receive `.sdlc/`.
 
+Outcomes (section 13): pass, fail, or decision. A "decision" outcome means
+the unit depends on a choice reserved to Jules: it does not count as a failed
+round, nothing is wrong with the work, and the same head may be reviewed
+again once DECISIONS.md answers the question. Blocking findings and failing
+tests still fail regardless of what the model says.
+
 Gates:
 
 - the unit record exists and its branch has commits beyond the base;
-- the branch head has not already been reviewed (a round costs effort);
+- the branch head has not already been reviewed with a pass or fail (a
+  round costs effort);
 - the unit has rounds left: the first review plus `Repairs` repair rounds.
   When the last allowed round fails, a stop report is written and further
   review is refused until Jules decides.
@@ -98,6 +105,13 @@ def build_package(rec: dict, root: Path, head: str, test_result: subprocess.Comp
     base = rec["base_sha"]
     contract = (root / rec["contract"]).read_text()
     decisions = (root / "DECISIONS.md").read_text() if (root / "DECISIONS.md").exists() else "(no DECISIONS.md)"
+    cited = []
+    for doc in rec.get("docs", []):
+        try:
+            body = git.run(["show", f"{base}:{doc}"], root)
+        except git.GitError:
+            body = "(not present at the base commit)"
+        cited += [f"## {doc} (at base {base[:10]})", "", body, ""]
     log = git.run(["log", "--format=- %h %s%n%b", f"{base}..{head}"], root)
     stat = git.run(["diff", "--stat", base, head], root)
     diff = git.run(["diff", base, head], root)
@@ -110,6 +124,7 @@ def build_package(rec: dict, root: Path, head: str, test_result: subprocess.Comp
         "",
         "# Contract", "", contract,
         "# Decision record", "", decisions,
+        "# Cited documents (the contract's authoritative inputs)", "", *(cited or ["(none cited)"]),
         "# Work record (commit messages)", "", log or "(no commits)",
         "# Diff summary", "", stat,
         "# Diff", "", "```diff", diff, "```",
@@ -148,11 +163,13 @@ def enforce(verdict: dict, test_exit: int, reserved: str) -> dict:
         forced.append("blocking findings present")
     if test_exit != 0:
         forced.append(f"test command exited {test_exit}")
-    if reserved.strip().lower() != "none" and any(f["class"] == "needs-decision" for f in verdict["findings"]):
-        forced.append("needs-decision finding on a unit with reserved choices")
     if forced and verdict["verdict"] == "pass":
         verdict["verdict"] = "fail"
         verdict["forced_fail"] = forced
+    needs = [f for f in verdict["findings"] if f["class"] == "needs-decision"]
+    if needs and reserved.strip().lower() != "none" and verdict["verdict"] == "pass":
+        verdict["verdict"] = "decision"
+        verdict["waiting_on"] = [f["title"] for f in needs]
     return verdict
 
 
@@ -182,11 +199,12 @@ def main(unit: str, reviewer: str | None = None, cwd: Path | None = None) -> int
         if stop.exists():
             print(f"sdlc review: unit {rec['unit']} is stopped after {len(past)} failed rounds. See {stop}. Jules decides what happens next.", file=sys.stderr)
             return REFUSE
-        if any(r["sha"] == head for r in past):
-            print(f"sdlc review: {head[:10]} was already reviewed (round {[r['round'] for r in past if r['sha']==head][0]}). Repair first; a round costs effort.", file=sys.stderr)
+        spent = [r for r in past if r["verdict"] in ("pass", "fail")]
+        if any(r["sha"] == head for r in spent):
+            print(f"sdlc review: {head[:10]} was already reviewed (round {[r['round'] for r in spent if r['sha']==head][0]}). Repair first; a round costs effort.", file=sys.stderr)
             return REFUSE
         allowed = rec["repairs"] + 1
-        round_no = len(past) + 1
+        round_no = len(spent) + 1
         if round_no > allowed:
             print(f"sdlc review: no rounds left ({allowed} allowed: first review plus {rec['repairs']} repairs).", file=sys.stderr)
             return REFUSE
@@ -199,7 +217,7 @@ def main(unit: str, reviewer: str | None = None, cwd: Path | None = None) -> int
         package = build_package(rec, root, head, test_result)
         command = reviewer_command(root, reviewer)
         reviews_dir(record).mkdir(parents=True, exist_ok=True)
-        stem = f"{round_no:02d}-{head[:12]}"
+        stem = f"{len(past) + 1:02d}-{head[:12]}"
         (reviews_dir(record) / f"{stem}.package.md").write_text(package)
 
         result = run_reviewer(command, package, record.parent)
@@ -212,12 +230,16 @@ def main(unit: str, reviewer: str | None = None, cwd: Path | None = None) -> int
         return REFUSE
 
     stored = {
-        "unit": rec["unit"], "round": round_no, "sha": head, "reviewed_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "unit": rec["unit"], "round": round_no if verdict["verdict"] != "decision" else None, "sha": head, "reviewed_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "reviewer": command, "test_exit": test_result.returncode, **verdict,
     }
     (reviews_dir(record) / f"{stem}.json").write_text(json.dumps(stored, indent=2) + "\n")
 
-    print(f"sdlc review {rec['unit']}: round {round_no}/{allowed} at {head[:10]}: {verdict['verdict'].upper()}")
+    if verdict["verdict"] == "decision":
+        print(f"sdlc review {rec['unit']}: at {head[:10]}: DECISION REQUIRED (no round spent; {round_no}/{allowed} remains next)")
+        print(f"  waiting on Jules: {'; '.join(verdict['waiting_on'])}")
+    else:
+        print(f"sdlc review {rec['unit']}: round {round_no}/{allowed} at {head[:10]}: {verdict['verdict'].upper()}")
     if verdict.get("forced_fail"):
         print(f"  forced fail: {'; '.join(verdict['forced_fail'])}")
     print(f"  {verdict['summary']}")
@@ -238,4 +260,4 @@ def main(unit: str, reviewer: str | None = None, cwd: Path | None = None) -> int
             "", f"Verdicts: {reviews_dir(record)}", "",
         ]))
         print(f"  STOPPED: no rounds left. Report at {stop}")
-    return 0 if verdict["verdict"] == "pass" else 1
+    return {"pass": 0, "fail": 1, "decision": 3}[verdict["verdict"]]

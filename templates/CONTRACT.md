@@ -17,7 +17,11 @@ Reserved: {{choices that return to Jules, or "none"}}
 Requirements, decisions (by D-number), source references, and unresolved questions with their triggers.
 
 ## Execution arrangement
-Role, model, context list, workspace, and permitted actions.
+Role, model, context list, workspace, and permitted actions. The reviewer
+sees only this contract, DECISIONS.md, the documents cited under
+Authoritative inputs, the diff, the commit messages, and the test output.
+The work record (assumptions, discoveries, deviations) therefore goes in
+commit messages, with the final commit's body as the summary.
 
 Model: {{model}}
 
