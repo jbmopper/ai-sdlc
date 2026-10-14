@@ -10,7 +10,9 @@ Three callers, one gate:
 - git pre-push (`--push`): refuses a push to an integration branch unless the
   pusher is on that branch, so a unit branch cannot push itself to main.
 - Claude Code PreToolUse (`--from-hook`): reads the hook's JSON on stdin and
-  checks the file the tool is about to write.
+  checks the file the tool is about to write. The repository is found from
+  the file's own location, not the process's working directory, so scratch
+  files outside any repository are allowed: there is nothing to protect.
 
 Exit 0 proceeds. Exit 2 refuses and prints what is protected and what would
 resolve it. Any error also exits 2: a gate that cannot run must not pass.
@@ -94,6 +96,32 @@ def check_push(stdin_lines: list[str], branch: str | None) -> list[str]:
     return msgs
 
 
+def repo_of(path: str) -> tuple[Path, str | None] | None:
+    """(toplevel, branch) of the repository containing `path`, or None if none does."""
+    p = Path(path)
+    if not p.is_absolute():
+        p = Path.cwd() / p
+    probe = p if p.is_dir() else p.parent
+    while not probe.exists() and probe != probe.parent:
+        probe = probe.parent
+    try:
+        root = git.toplevel(probe)
+    except git.GitError:
+        return None
+    return root, git.current_branch(root)
+
+
+def check_hook_paths(paths: list[str]) -> list[str]:
+    msgs = []
+    for p in paths:
+        found = repo_of(p)
+        if found is None:
+            continue
+        root, branch = found
+        msgs += check_paths([str(Path(p) if Path(p).is_absolute() else Path.cwd() / p)], root, branch)
+    return msgs
+
+
 def paths_from_hook_json(payload: str) -> list[str]:
     data = json.loads(payload) if payload.strip() else {}
     tool_input = data.get("tool_input") or {}
@@ -109,14 +137,15 @@ def paths_from_hook_json(payload: str) -> list[str]:
 
 def main(paths: list[str], push: bool, from_hook: bool, stdin=sys.stdin, cwd: Path | None = None) -> int:
     try:
-        root = git.toplevel(cwd)
-        branch = git.current_branch(cwd)
-        if push:
-            msgs = check_push(stdin.read().splitlines(), branch)
-        elif from_hook:
-            msgs = check_paths(paths_from_hook_json(stdin.read()), root, branch)
+        if from_hook:
+            msgs = check_hook_paths(paths_from_hook_json(stdin.read()))
         else:
-            msgs = check_paths(paths or git.staged_paths(cwd), root, branch)
+            root = git.toplevel(cwd)
+            branch = git.current_branch(cwd)
+            if push:
+                msgs = check_push(stdin.read().splitlines(), branch)
+            else:
+                msgs = check_paths(paths or git.staged_paths(cwd), root, branch)
     except (git.GitError, ValueError, OSError) as e:
         print(f"sdlc check-protected: cannot run the gate ({e}); refusing.", file=sys.stderr)
         return REFUSE

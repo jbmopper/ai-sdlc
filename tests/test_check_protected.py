@@ -172,6 +172,26 @@ def test_hook_allows_file_outside_repo(repo, tmp_path):
     assert r.returncode == 0, r.stderr
 
 
+def test_hook_allows_scratch_file_when_cwd_is_outside_any_repo(repo, tmp_path):
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    r = sdlc(scratch, "--from-hook", stdin=hook_json(repo, "Write", file_path=str(scratch / "report.md")))
+    assert r.returncode == 0, r.stderr
+
+
+def test_hook_allows_new_file_in_new_subdir_outside_repo(repo, tmp_path):
+    r = sdlc(tmp_path, "--from-hook", stdin=hook_json(repo, "Write", file_path=str(tmp_path / "a" / "b" / "DECISIONS.md")))
+    assert r.returncode == 0, r.stderr
+
+
+def test_hook_finds_repo_from_the_file_not_the_cwd(repo, tmp_path):
+    git(repo, "checkout", "-q", "-b", "unit/x")
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    r = sdlc(elsewhere, "--from-hook", stdin=hook_json(repo, "Edit", file_path=str(repo / "DECISIONS.md")))
+    assert r.returncode == 2 and "DECISIONS.md is protected on branch unit/x" in r.stderr
+
+
 def test_hook_checks_multiedit_paths(repo):
     git(repo, "checkout", "-q", "-b", "unit/x")
     payload = json.dumps({"tool_name": "MultiEdit", "tool_input": {
