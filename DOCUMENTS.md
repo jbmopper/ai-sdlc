@@ -4,6 +4,7 @@ Canonical docs. If a doc isn't listed here, it isn't canonical.
 
 | Doc | Purpose |
 |---|---|
+| [README.md](README.md) | Public front page: what this is and where to look |
 | [AGENTS.md](AGENTS.md) | Instructions for agents |
 | [CLAUDE.md](CLAUDE.md) | Points Claude Code to AGENTS.md |
 | [DOCUMENTS.md](DOCUMENTS.md) | This index |

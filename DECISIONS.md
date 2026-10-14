@@ -5,7 +5,7 @@ Only decisions Jules has validated. Append-only: a reversed decision is struck t
 | # | Date | Decision |
 |---|---|---|
 | D1 | 2026-09-22 | Build the SDLC system first, then use it to finish `resume-lambda`. `resume-lambda` is the motivating failure: a lightweight "just talk to agents" approach drifted requirements despite care. |
-| D2 | 2026-09-22 | `resume-lambda` runs the first bounded qualification trial. `aur-detonationpot` never was the trial. |
+| ~~D2~~ | ~~2026-09-22~~ | ~~`resume-lambda` runs the first bounded qualification trial. `aur-detonationpot` never was the trial.~~ Superseded by D19. |
 | D3 | 2026-09-22 | Claude first, ultimately provider agnostic. CLAUDE.md points to AGENTS.md. Logic lives in files and scripts any agent can use. |
 | D4 | 2026-09-22 | Enforcement lives on the machine. No GitHub branch protection or rulesets. |
 | D5 | 2026-09-22 | Integration flow: writer, then independent review, then record nonblocking findings, then the agent merges and deletes the worktree and branch. Not "agent opens PR, Jules merges." |
@@ -22,3 +22,7 @@ Only decisions Jules has validated. Append-only: a reversed decision is struck t
 | D16 | 2026-10-14 | Proposed decisions have no file of their own. A proposal from a work unit goes in the verdict's needs-decision list and reaches Jules in the batched summary; he accepts it by appending to DECISIONS.md, or it dies with the branch. A proposal that must outlive a unit is a deferred question and lives in the spec or design doc with its trigger. |
 | D17 | 2026-10-14 | Effort units: a per-dispatch turn cap and the repair-round limit are enforced. Tokens and wallclock are recorded in the work record, not enforced. |
 | D18 | 2026-10-14 | Contracts live in a `contracts/` directory in the adopted project, one file per unit named by date and slug. The branch, worktree, and verdict share the unit id. The coordinator commits the contract to main before dispatch, so it is protected from the writer. Contracts are not listed in DOCUMENTS.md; the directory is the index. |
+| D19 | 2026-10-14 | The first trial runs in a different project than `resume-lambda`, not yet named here. Supersedes D2. |
+| D20 | 2026-10-14 | The turn cap in D17 is not enforced by tooling for now. It may be given to the writer as an instruction, or skipped. Repair rounds remain enforced by `sdlc review`. |
+| D21 | 2026-10-14 | Contracts carry a `Tests:` line naming the command that establishes the change. `sdlc review` runs it in the worktree; `sdlc integrate` runs it on the merged tree and refuses on failure. |
+| D22 | 2026-10-14 | `ai-sdlc` is a public repository at `jbmopper/ai-sdlc`. |
