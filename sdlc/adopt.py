@@ -26,9 +26,21 @@ MARKER = "# ai-sdlc hook"
 CHAINED_SUFFIX = ".sdlc-chained"
 
 
+def sdlc_ref(shell: bool) -> str:
+    """bin/sdlc as written into a project. Under the home directory it is
+    home-relative, so a project adopted on one machine works on another with a
+    different user name and the tools at the same place under home: `$HOME/...`
+    for hooks, which run in a shell, `~/...` for AGENTS.md. Elsewhere, absolute."""
+    try:
+        rel = SDLC_BIN.relative_to(Path.home().resolve())
+    except ValueError:
+        return str(SDLC_BIN)
+    return f"{'$HOME' if shell else '~'}/{rel}"
+
+
 def render_template(name: str, project: str, description: str | None) -> str:
     text = (TEMPLATES / name).read_text()
-    text = text.replace("{{project}}", project).replace("@SDLC@", str(SDLC_BIN))
+    text = text.replace("{{project}}", project).replace("@SDLC@", sdlc_ref(shell=False))
     if description:
         text = text.replace("{{one-line description}}", description)
     else:
@@ -39,20 +51,20 @@ def render_template(name: str, project: str, description: str | None) -> str:
 
 def render_hook(name: str, chained: Path | None) -> str:
     text = (HERE / "hooks" / "git" / name).read_text()
-    return text.replace("@SDLC@", str(SDLC_BIN)).replace("@CHAINED@", str(chained) if chained else "")
+    return text.replace("@SDLC@", sdlc_ref(shell=True)).replace("@CHAINED@", str(chained) if chained else "")
 
 
 def hook_entry() -> dict:
-    text = (HERE / "hooks" / "claude" / "settings.json").read_text().replace("@SDLC@", str(SDLC_BIN))
+    text = (HERE / "hooks" / "claude" / "settings.json").read_text().replace("@SDLC@", sdlc_ref(shell=True))
     return json.loads(text)["hooks"]["PreToolUse"][0]
 
 
-def has_our_entry(settings: dict) -> bool:
+def our_hook(settings: dict) -> dict | None:
     for entry in settings.get("hooks", {}).get("PreToolUse", []):
         for h in entry.get("hooks", []):
             if "check-protected --from-hook" in h.get("command", ""):
-                return True
-    return False
+                return h
+    return None
 
 
 def plan(repo: Path, force: bool, description: str | None) -> list[tuple[str, str, object]]:
@@ -97,11 +109,16 @@ def plan(repo: Path, force: bool, description: str | None) -> list[tuple[str, st
 
     settings_path = root / ".claude" / "settings.json"
     settings = json.loads(settings_path.read_text()) if settings_path.exists() else {}
-    if has_our_entry(settings):
-        items.append(("noop", str(settings_path), None))
-    else:
-        settings.setdefault("hooks", {}).setdefault("PreToolUse", []).append(hook_entry())
+    entry = hook_entry()
+    ours = our_hook(settings)
+    if ours is None:
+        settings.setdefault("hooks", {}).setdefault("PreToolUse", []).append(entry)
         items.append(("merge", str(settings_path), json.dumps(settings, indent=2) + "\n"))
+    elif ours["command"] == entry["hooks"][0]["command"]:
+        items.append(("noop", str(settings_path), None))
+    else:  # an earlier adopt wrote another path to bin/sdlc
+        ours["command"] = entry["hooks"][0]["command"]
+        items.append(("update", str(settings_path), json.dumps(settings, indent=2) + "\n"))
     return items
 
 
@@ -110,7 +127,7 @@ def execute(items: list[tuple[str, str, object]]) -> None:
         t = Path(target)
         if action == "chain":
             t.rename(t.with_name(t.name + CHAINED_SUFFIX))
-        if action in ("create", "overwrite", "merge", "chain", "append"):
+        if action in ("create", "overwrite", "merge", "update", "chain", "append"):
             t.parent.mkdir(parents=True, exist_ok=True)
             t.write_text(payload)  # type: ignore[arg-type]
             if isinstance(payload, str) and payload.startswith("#!"):
@@ -123,6 +140,7 @@ VERBS = {
     "keep": ("would keep (exists, differs; use --force to overwrite)", "kept (exists, differs; use --force to overwrite)"),
     "chain": (f"would chain existing hook as *{CHAINED_SUFFIX} after the gate", f"chained existing hook as *{CHAINED_SUFFIX} after the gate"),
     "merge": ("would add PreToolUse hook to", "added PreToolUse hook to"),
+    "update": ("would update the sdlc path in the PreToolUse hook in", "updated the sdlc path in the PreToolUse hook in"),
     "append": ("would add .sdlc/ to", "added .sdlc/ to"),
     "noop": ("already in place", "already in place"),
 }

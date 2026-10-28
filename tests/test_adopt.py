@@ -4,7 +4,18 @@ from pathlib import Path
 
 from conftest import git, sdlc
 
+import pytest
+
 SDLC_BIN = Path(__file__).resolve().parent.parent / "bin" / "sdlc"
+HOME = SDLC_BIN.parents[2]  # the directory holding the ai-sdlc checkout
+IN_HOOKS = f"$HOME/{SDLC_BIN.relative_to(HOME)}"
+IN_AGENTS = f"~/{SDLC_BIN.relative_to(HOME)}"
+
+
+@pytest.fixture(autouse=True)
+def tools_under_home(monkeypatch):
+    """Pin HOME so the written paths do not depend on where the tests run."""
+    monkeypatch.setenv("HOME", str(HOME))
 
 
 def hooks_dir(repo):
@@ -29,15 +40,45 @@ def test_apply_installs_substrate_hooks_and_settings(bare_repo):
         assert (bare_repo / name).exists(), name
     agents = (bare_repo / "AGENTS.md").read_text()
     assert "**proj** — a test project." in agents and "{{" not in agents
-    assert f"`{SDLC_BIN} contract check`" in agents and "@SDLC@" not in agents
+    assert f"`{IN_AGENTS} contract check`" in agents and "@SDLC@" not in agents
     for name in ("pre-commit", "pre-push"):
         hook = hooks_dir(bare_repo) / name
         text = hook.read_text()
-        assert str(SDLC_BIN) in text and "@SDLC@" not in text and 'CHAINED=""' in text
+        assert f'SDLC="{IN_HOOKS}"' in text and "@SDLC@" not in text and 'CHAINED=""' in text
         assert os.access(hook, os.X_OK)
     settings = json.loads((bare_repo / ".claude" / "settings.json").read_text())
     cmd = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
-    assert cmd == f"{SDLC_BIN} check-protected --from-hook"
+    assert cmd == f"{IN_HOOKS} check-protected --from-hook"
+
+
+def test_tools_outside_home_are_written_absolute(bare_repo, tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path / "elsewhere"))
+    sdlc(bare_repo, "adopt", str(bare_repo), "--apply")
+    assert f"`{SDLC_BIN} contract check`" in (bare_repo / "AGENTS.md").read_text()
+    assert f'SDLC="{SDLC_BIN}"' in (hooks_dir(bare_repo) / "pre-commit").read_text()
+    settings = json.loads((bare_repo / ".claude" / "settings.json").read_text())
+    assert settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"] == f"{SDLC_BIN} check-protected --from-hook"
+
+
+def test_claude_hook_from_another_machine_is_updated(bare_repo):
+    (bare_repo / ".claude").mkdir()
+    (bare_repo / ".claude" / "settings.json").write_text(json.dumps({"hooks": {"PreToolUse": [{"matcher": "Edit",
+        "hooks": [{"type": "command", "command": "/Users/other/Dev/ai-sdlc/bin/sdlc check-protected --from-hook"}]}]}}))
+    r = sdlc(bare_repo, "adopt", str(bare_repo), "--apply")
+    assert "updated the sdlc path" in r.stdout
+    s = json.loads((bare_repo / ".claude" / "settings.json").read_text())
+    assert len(s["hooks"]["PreToolUse"]) == 1
+    assert s["hooks"]["PreToolUse"][0]["hooks"][0]["command"] == f"{IN_HOOKS} check-protected --from-hook"
+
+
+def test_claude_hook_command_runs_through_the_shell(bare_repo):
+    sdlc(bare_repo, "adopt", str(bare_repo), "--apply")
+    import subprocess
+    s = json.loads((bare_repo / ".claude" / "settings.json").read_text())
+    cmd = s["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+    event = json.dumps({"tool_name": "Edit", "tool_input": {"file_path": str(bare_repo / "README.md")}})
+    r = subprocess.run(["sh", "-c", cmd], input=event, capture_output=True, text=True, cwd=bare_repo)
+    assert r.returncode == 0, r.stderr
 
 
 def test_sdlc_records_dir_is_gitignored(bare_repo):
