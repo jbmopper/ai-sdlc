@@ -1,6 +1,6 @@
 # Documents
 
-Canonical docs. If a doc isn't listed here, it isn't canonical.
+Canonical docs. A listed doc is canonical unless its row says it is a draft, research, notes, or otherwise not validated by Jules; then it is input, never direction. Say the status in plain words. If a doc isn't listed here, it isn't canonical.
 
 | Doc | Purpose |
 |---|---|

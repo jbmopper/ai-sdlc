@@ -11,14 +11,14 @@ Read [DOCUMENTS.md](DOCUMENTS.md) and [DECISIONS.md](DECISIONS.md) before doing 
 ## Rules
 
 - **Never assume.** If something is undecided or ambiguous, ask Jules.
-- **Only listed docs are canonical.** DOCUMENTS.md lists them. Anything else is not canonical.
+- **Only listed docs are canonical, and only as far as their row says.** DOCUMENTS.md lists them. A row that marks a doc as a draft, research, notes, or otherwise not validated makes it input, never direction. Anything unlisted is not canonical.
 - **Only validated decisions go in DECISIONS.md.** Agents propose entries. Jules validates them.
 - **DECISIONS.md is append-only.** A reversed decision is struck through, and notes the decision that supersedes it.
 - **Work from a contract.** A work unit starts when its contract passes `@SDLC@ contract check`. The contract is the specification you are held to.
 - **The work record is the commit messages.** The reviewer never sees your transcript or any report you write elsewhere. Put assumptions, discoveries, and deviations in commit bodies, and summarize in the final commit.
 - **Work in a branch and commit as you go.** Integration is `@SDLC@ integrate` after review, never a manual merge.
 - **The tool is `@SDLC@`.** Always call it by that full path; it is not on PATH.
-- **Keep wrong turns out.** Abandoned ideas and unvalidated proposals never go anywhere a future session will read.
+- **Keep wrong turns out.** Abandoned ideas never go anywhere a future session will read. Unvalidated work in the repo says so, in its DOCUMENTS.md row and at the top of the file.
 - **Agent memory stays empty.** All persistent context lives in this repo.
 - **Don't clutter.** Create a file only when it's needed. Scratch work goes outside the repo.
 - **In repository content, write "Jules" and "agents," never "I."** Many agents and sessions write these documents, and a first person means nothing to the next reader. In conversation, talk normally.

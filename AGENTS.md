@@ -14,7 +14,7 @@ Read [DOCUMENTS.md](DOCUMENTS.md) and [DECISIONS.md](DECISIONS.md) before doing 
 ## Rules
 
 - **Never assume.** If something is undecided or ambiguous, ask Jules.
-- **Only listed docs are canonical.** DOCUMENTS.md lists them. Anything else is not canonical.
+- **Only listed docs are canonical, and only as far as their row says.** DOCUMENTS.md lists them. A row that marks a doc as a draft, research, notes, or otherwise not validated makes it input, never direction. Anything unlisted is not canonical.
 - **Only validated decisions go in DECISIONS.md.** Agents propose entries. Jules validates them.
 - **DECISIONS.md is append-only.** A reversed decision is struck through, and notes the decision that supersedes it.
 - **Claude first, provider agnostic.** Logic lives in scripts under `bin/` that any agent or Jules can run. Hooks are thin wrappers that call those scripts; they never hold logic of their own.
@@ -22,7 +22,7 @@ Read [DOCUMENTS.md](DOCUMENTS.md) and [DECISIONS.md](DECISIONS.md) before doing 
 - **Dry-run by default.** Anything that changes a project, a branch, or a worktree shows its plan first and acts only with `--apply`.
 - **Never print secret values.**
 - **Work in branches and commit as you go.** Merge gates are what this repo builds; until they exist here, don't merge without Jules.
-- **Keep wrong turns out.** Abandoned ideas and unvalidated proposals never go anywhere a future session will read.
+- **Keep wrong turns out.** Abandoned ideas never go anywhere a future session will read. Unvalidated work in the repo says so, in its DOCUMENTS.md row and at the top of the file.
 - **Agent memory stays empty.** All persistent context lives in this repo.
 - **Don't clutter.** Create a file only when it's needed. Scratch work goes outside the repo.
 - **In repository content, write "Jules" and "agents," never "I."** Many agents and sessions write these documents, and a first person means nothing to the next reader. In conversation, talk normally.
