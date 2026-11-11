@@ -24,6 +24,7 @@ RECORDS_NEVER_OVERWRITTEN = ("DOCUMENTS.md", "DECISIONS.md")  # Jules's records;
 GIT_HOOKS = ("pre-commit", "pre-push")
 MARKER = "# ai-sdlc hook"
 CHAINED_SUFFIX = ".sdlc-chained"
+MARKED = "AGENTS.md"  # carries the sync marker
 
 
 def sdlc_ref(shell: bool) -> str:
@@ -39,8 +40,24 @@ def sdlc_ref(shell: bool) -> str:
 
 
 def render_template(name: str, project: str, description: str | None) -> str:
-    text = (TEMPLATES / name).read_text()
-    text = text.replace("{{project}}", project).replace("@SDLC@", sdlc_ref(shell=False))
+    text = render_text((TEMPLATES / name).read_text(), project, description, sdlc_ref(shell=False))
+    if name == MARKED:
+        text = with_marker(text, source_head())
+    return text
+
+
+def source_head(source: Path = HERE) -> str:
+    """The ai-sdlc commit the templates come from, recorded in AGENTS.md so
+    `sdlc sync` knows what a project was last brought up to date with."""
+    return git.run(["rev-parse", "HEAD"], source).strip()
+
+
+def with_marker(text: str, sha: str) -> str:
+    return text.rstrip("\n") + f"\n\n<!-- ai-sdlc: {sha} -->\n"
+
+
+def render_text(text: str, project: str, description: str | None, sdlc_path: str) -> str:
+    text = text.replace("{{project}}", project).replace("@SDLC@", sdlc_path)
     if description:
         text = text.replace("{{one-line description}}", description)
     else:
