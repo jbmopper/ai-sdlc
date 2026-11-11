@@ -19,6 +19,16 @@ subcommands unless noted. Steps marked *later* are outside increment one (D12).
 | Release *(later)* | Release candidate, regression evidence, notes. | Promotion authority per project. | Not built. |
 | Closure and recovery *(later)* | Updated docs, learnings, next-step proposals; reconstructed coordinator state. | Section 10 fold order. | Not built. |
 
+## Re-entering architecture
+
+Settled direction can turn out wrong or incomplete after work has been built on it. Architecture then reopens for the affected docs (D24). Entry and exit are both decisions.
+
+1. **Enter.** Jules records a decision naming what is being revised and why. It supersedes the decision that validated the affected docs, so `sdlc contract check` refuses any contract that cites the old one.
+2. **Mark.** Each affected doc says it is under revision, citing the new decision, in a status line at the top of the file and in its DOCUMENTS.md row.
+3. **Stop dependent work.** Identify work in flight that relies on the affected docs (design section 12). It stops, or its contract is revised before it continues. No new contract is written against docs under revision, and the re-entry decision is never cited as a basis for work.
+4. **Work.** Architecture runs as normal: research and drafts are listed as not validated (D23), and decisions are recorded as Jules makes them.
+5. **Exit.** The normal architecture gate. Jules records the decision that validates the revised docs; their status lines and rows say so; research they superseded is deleted or relabeled as their sources. Contracts cite the new decision.
+
 ## Open questions
 
 Not decisions. Each closes by Jules recording an entry in DECISIONS.md.
